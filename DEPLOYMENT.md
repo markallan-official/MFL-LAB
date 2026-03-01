@@ -11,34 +11,26 @@ Ensure your Supabase project is ready for production:
 3.  **Database Tables**: Ensure all tables (`users`, `user_assignments`, etc.) are created and RLS (Row Level Security) policies are active.
 4.  **SMTP**: For reliable emails, configure a custom SMTP provider (like Sengrid or Resend) in `Authentication > Settings > SMTP`.
 
-## 2. Vercel Deployment
+## 2. Vercel Deployment (One-Click)
 
-You should deploy the **Frontend** and **Backend** as two separate projects in Vercel to allow them to scale and function correctly.
+I have automated the monorepo logic for you! You now only need **ONE** project in Vercel to host both the UI and the API.
 
-### A. Frontend Deployment (Project: `mfl-labs-ui`)
 1.  **Import**: Select your repository in Vercel.
-2.  **Root Directory**: Set this to **`frontend`**.
-3.  **Framework Preset**: Select **`Vite`**.
-4.  **Environment Variables**:
+2.  **Project Name**: Use `mfl-labs`.
+3.  **Root Directory**: Keep it as the **Default (Root)**. (Do not select `frontend` or `backend`).
+4.  **Framework Preset**: Select **`Vite`**.
+5.  **Environment Variables**: Add all your keys in one place:
     *   `VITE_SUPABASE_URL`: Your Supabase URL.
     *   `VITE_SUPABASE_ANON_KEY`: Your Supabase Anon Key.
-5.  **Deploy**: This will serve your main Assembly Matrix dashboard.
-
-### B. Backend Deployment (Project: `mfl-labs-api`)
-1.  **Import**: Select the same repository again for a new project.
-2.  **Root Directory**: Set this to **`backend`**.
-3.  **Framework Preset**: Select **`Other`** or **`Node.js`**. (Vercel will detect the `vercel.json` inside the backend folder).
-4.  **Environment Variables**:
-    *   `SUPABASE_URL`: (Note: NO `VITE_` prefix here!)
-    *   `SUPABASE_ANON_KEY`: (Note: NO `VITE_` prefix here!)
+    *   `SUPABASE_URL`: Same as above (for the API).
+    *   `SUPABASE_ANON_KEY`: Same as above (for the API).
     *   `SMTP_USER`, `SMTP_PASS`, etc.
-5.  **Deploy**: This will host your Express API server.
+6.  **Deploy**: Vercel will automatically build the frontend into `/` and serve the API from `/api`.
 
 ## 3. Post-Deployment Steps
 
-1.  **CORS**: Update the `CORS_ORIGIN` environment variable in your **Backend** project to include your **Frontend** Vercel URL.
-2.  **Initial Admin Setup**: Manually set your status to `admin` in the Supabase `users` table for your primary email (e.g., `markmallan01@gmail.com`).
-3.  **Access Approvals**: Use the **Admin Control Panel** to review and approve new access requests.
+1.  **Initial Admin Setup**: Manually set your status to `admin` in the Supabase `users` table for your primary email (e.g., `markmallan01@gmail.com`).
+2.  **Access Approvals**: Use the **Admin Control Panel** to review and approve new access requests.
 
 ## 4. Scaling Considerations
 
