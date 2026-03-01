@@ -47,7 +47,7 @@ const WORKSPACES = [
 ];
 
 const AdminDashboard: React.FC = () => {
-    const { user, session } = useAuth();
+    const { user, session, isAdmin } = useAuth();
     const [approvals, setApprovals] = useState<PendingApproval[]>([]);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState<string | null>(null);
@@ -90,12 +90,13 @@ const AdminDashboard: React.FC = () => {
         } catch (err: any) {
             console.error('Error fetching approvals:', err);
             const errorMsg = err.response?.data?.error || err.message || 'FAILED_TO_SYNC_WITH_SECURITY_CORE';
+            const status = err.response?.status;
 
-            // Bypass "User not found" for super admin - they might not have a record yet
-            const isSuper = user?.email?.toLowerCase() === 'markmallan01@gmail.com';
-            if (isSuper && errorMsg.toLowerCase().includes('user not found')) {
-                console.log('AdminDashboard: Bypassing User Not Found for Super Admin');
-                setApprovals([]); // Still fine to show empty list if we can't fetch
+            // Bypass "User not found" or Auth errors for super admin - they might not have a database record yet
+            if (isAdmin && (status === 401 || errorMsg.toLowerCase().includes('user not found'))) {
+                console.log('AdminDashboard: Bypassing Auth Error for Super Admin');
+                setApprovals([]);
+                setError(null);
                 return;
             }
 

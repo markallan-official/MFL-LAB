@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 const Pending: React.FC = () => {
-    const { signOut, refreshAccount, user } = useAuth();
+    const { signOut, refreshAccount, user, isAdmin, status } = useAuth();
     const [checking, setChecking] = React.useState(false);
     const navigate = useNavigate();
 
@@ -18,12 +18,14 @@ const Pending: React.FC = () => {
         navigate('/login');
     };
 
-    // If suddenly active, redirect
+    // If suddenly active or is admin, redirect
     React.useEffect(() => {
-        if (user?.email?.toLowerCase() === 'markmallan01@gmail.com') {
+        if (isAdmin) {
             navigate('/admin');
+        } else if (status && status.startsWith('active')) {
+            navigate('/dashboard');
         }
-    }, [user, navigate]);
+    }, [isAdmin, status, navigate]);
 
     return (
         <div style={{

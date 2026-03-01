@@ -115,8 +115,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 if (isSuperAdmin) {
                     setStatus('active');
                     setAssignedWorkspace('unassigned');
+                    setLoading(false);
+                    return;
                 }
-            } else if (data) {
+            }
+
+            if (data) {
                 console.log('AuthContext: DB Data retrieved', data.status);
                 // For Super Admin, we force 'active' to ensure they can manage the platform
                 if (isSuperAdmin) {
