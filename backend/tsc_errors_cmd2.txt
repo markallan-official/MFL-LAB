@@ -1,0 +1,10 @@
+src/routes/workspaces/ai_builder.ts(77,12): error TS2551: Property 'catch' does not exist on type 'PostgrestFilterBuilder<any, any, any, null, "audit_logs", unknown, "POST">'. Did you mean 'match'?
+src/routes/workspaces/ai_builder.ts(292,12): error TS2551: Property 'catch' does not exist on type 'PostgrestFilterBuilder<any, any, any, null, "audit_logs", unknown, "POST">'. Did you mean 'match'?
+src/routes/workspaces/analyst.ts(74,12): error TS2551: Property 'catch' does not exist on type 'PostgrestFilterBuilder<any, any, any, null, "audit_logs", unknown, "POST">'. Did you mean 'match'?
+src/routes/workspaces/designer.ts(63,12): error TS2551: Property 'catch' does not exist on type 'PostgrestFilterBuilder<any, any, any, null, "audit_logs", unknown, "POST">'. Did you mean 'match'?
+src/routes/workspaces/designer.ts(163,12): error TS2551: Property 'catch' does not exist on type 'PostgrestFilterBuilder<any, any, any, null, "audit_logs", unknown, "POST">'. Did you mean 'match'?
+src/routes/workspaces/integration.ts(77,12): error TS2551: Property 'catch' does not exist on type 'PostgrestFilterBuilder<any, any, any, null, "audit_logs", unknown, "POST">'. Did you mean 'match'?
+src/routes/workspaces/integration.ts(243,12): error TS2551: Property 'catch' does not exist on type 'PostgrestFilterBuilder<any, any, any, null, "audit_logs", unknown, "POST">'. Did you mean 'match'?
+src/routes/workspaces/integration.ts(274,12): error TS2551: Property 'catch' does not exist on type 'PostgrestFilterBuilder<any, any, any, null, "audit_logs", unknown, "POST">'. Did you mean 'match'?
+src/routes/workspaces/qa.ts(78,12): error TS2551: Property 'catch' does not exist on type 'PostgrestFilterBuilder<any, any, any, null, "audit_logs", unknown, "POST">'. Did you mean 'match'?
+src/routes/workspaces/qa.ts(310,12): error TS2551: Property 'catch' does not exist on type 'PostgrestFilterBuilder<any, any, any, null, "audit_logs", unknown, "POST">'. Did you mean 'match'?

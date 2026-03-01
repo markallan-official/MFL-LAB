@@ -1,0 +1,10 @@
+src/routes/auth.ts(204,64): error TS2345: Argument of type '{ token_hash: any; type: "email" | "sms"; }' is not assignable to parameter of type 'VerifyOtpParams'.
+  Type '{ token_hash: any; type: "email" | "sms"; }' is not assignable to type 'VerifyTokenHashParams'.
+    Types of property 'type' are incompatible.
+      Type '"email" | "sms"' is not assignable to type 'EmailOtpType'.
+        Type '"sms"' is not assignable to type 'EmailOtpType'.
+src/routes/workspaces/ai_builder.ts(3,26): error TS2307: Cannot find module '../../config/supabase!.js' or its corresponding type declarations.
+src/routes/workspaces/analyst.ts(3,26): error TS2307: Cannot find module '../../config/supabase!.js' or its corresponding type declarations.
+src/routes/workspaces/designer.ts(3,26): error TS2307: Cannot find module '../../config/supabase!.js' or its corresponding type declarations.
+src/routes/workspaces/integration.ts(3,26): error TS2307: Cannot find module '../../config/supabase!.js' or its corresponding type declarations.
+src/routes/workspaces/qa.ts(3,26): error TS2307: Cannot find module '../../config/supabase!.js' or its corresponding type declarations.

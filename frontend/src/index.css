@@ -1,0 +1,81 @@
+:root {
+    --bg-deep: #050507;
+    --bg-matrix: #0A0A0E;
+    --primary-blue: #0066FF;
+    --primary-red: #FF1A1A;
+    --accent-cyan: #00F0FF;
+    --text-main: #F5F5F7;
+    --text-muted: #8E8E93;
+    --hex-glass: rgba(255, 255, 255, 0.02);
+    --hex-border: rgba(255, 255, 255, 0.1);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-font-smoothing: antialiased;
+}
+
+html,
+body,
+#root {
+    width: 100%;
+    height: 100%;
+    background-color: var(--bg-deep) !important;
+    color: var(--text-main);
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    overflow-x: hidden;
+}
+
+/* Hexagon Core Shape */
+.hexagon-shape {
+    clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+}
+
+/* Honeycomb Grid Layout */
+.assembly-matrix-grid {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px;
+}
+
+.hex-row {
+    display: flex;
+    justify-content: center;
+}
+
+/* Base Hexagon Container */
+.hex-container {
+    position: relative;
+    width: 260px;
+    height: 230px;
+    margin: 5px;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+.hex-container:hover {
+    transform: scale(1.05) translateY(-5px);
+    z-index: 10;
+}
+
+/* Global Animations */
+@keyframes matrix-pulse {
+    0% {
+        opacity: 0.3;
+    }
+
+    50% {
+        opacity: 0.6;
+    }
+
+    100% {
+        opacity: 0.3;
+    }
+}
+
+.animate-pulse-slow {
+    animation: matrix-pulse 4s infinite ease-in-out;
+}

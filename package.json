@@ -1,0 +1,49 @@
+{
+    "name": "saas-collaborative-platform",
+    "version": "1.0.0",
+    "description": "Enterprise SaaS platform for collaborative development of complex applications",
+    "private": true,
+    "type": "module",
+    "workspaces": [
+        "backend",
+        "frontend",
+        "shared"
+    ],
+    "scripts": {
+        "dev": "npm run dev --workspaces --if-present",
+        "build": "npm run build --workspaces --if-present",
+        "test": "npm run test --workspaces --if-present",
+        "test:coverage": "npm run test:coverage --workspaces --if-present",
+        "lint": "npm run lint --workspaces --if-present",
+        "format": "npm run format --workspaces --if-present",
+        "type-check": "npm run type-check --workspaces --if-present",
+        "docker:up": "docker-compose up -d",
+        "docker:down": "docker-compose down",
+        "docker:logs": "docker-compose logs -f",
+        "db:migrate": "npm run db:migrate --workspace=backend",
+        "db:seed": "npm run db:seed --workspace=backend"
+    },
+    "devDependencies": {
+        "eslint": "^8.50.0",
+        "prettier": "^3.0.0",
+        "typescript": "^5.2.0"
+    },
+    "engines": {
+        "node": ">=18.0.0",
+        "npm": ">=9.0.0"
+    },
+    "keywords": [
+        "saas",
+        "collaborative",
+        "development",
+        "platform",
+        "workspace",
+        "game-development",
+        "enterprise-software"
+    ],
+    "author": "Platform Architecture Team",
+    "license": "PROPRIETARY",
+    "dependencies": {
+        "@supabase/supabase-js": "^2.97.0"
+    }
+}
