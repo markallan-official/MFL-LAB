@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import axios from 'axios';
 import { supabase } from '../../config/supabase';
 
 const RequestAccess: React.FC = () => {
@@ -26,34 +27,15 @@ const RequestAccess: React.FC = () => {
         setError('');
 
         try {
-            // 1. Sign up with Supabase Auth
-            const { data: authData, error: authError } = await supabase.auth.signUp({
+            const response = await axios.post('/api/v1/auth/signup', {
                 email,
                 password,
-                options: {
-                    data: {
-                        full_name: fullName,
-                        requested_role: requestedRole,
-                    },
-                },
+                full_name: fullName,
+                requested_role: requestedRole
             });
 
-            if (authError) throw authError;
-            if (!authData.user) throw new Error('Failed to create account.');
-
-            // 2. Insert into users table
-            const { error: insertError } = await supabase
-                .from('users')
-                .upsert({
-                    id: authData.user.id,
-                    email: authData.user.email,
-                    full_name: fullName,
-                    status: 'pending',
-                    metadata: { requested_role: requestedRole } // Using a metadata field if available or just storing it
-                });
-
-            if (insertError) {
-                console.error("Warning: Could not insert pending user record.", insertError);
+            if (!response.data.success) {
+                throw new Error(response.data.error || 'Failed to request access.');
             }
 
             setSuccess(true);
@@ -62,7 +44,7 @@ const RequestAccess: React.FC = () => {
             }, 3000);
 
         } catch (error: any) {
-            setError(error.message || 'Failed to request access. Check console.');
+            setError(error.response?.data?.error || error.message || 'Failed to request access. Check console.');
         } finally {
             setLoading(false);
         }

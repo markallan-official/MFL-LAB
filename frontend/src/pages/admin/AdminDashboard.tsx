@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../../config/supabase';
+import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
 import {
     FiUserCheck,
@@ -12,19 +12,29 @@ import {
     FiCpu,
     FiActivity,
     FiGlobe,
-    FiTerminal,
-    FiCheckCircle,
     FiDatabase,
-    FiLink
+    FiLink,
+    FiAlertCircle
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 
-interface PendingUser {
+interface PendingApproval {
     id: string;
-    email: string;
-    full_name: string;
+    type: string;
+    status: string;
     created_at: string;
-    metadata?: any;
+    data: {
+        user_id: string;
+        email: string;
+        full_name: string;
+        requested_at: string;
+        requested_role?: string;
+    };
+    requester: {
+        id: string;
+        email: string;
+        full_name: string;
+    };
 }
 
 const WORKSPACES = [
@@ -37,71 +47,93 @@ const WORKSPACES = [
 ];
 
 const AdminDashboard: React.FC = () => {
-    const { user } = useAuth();
-    const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
+    const { user, session } = useAuth();
+    const [approvals, setApprovals] = useState<PendingApproval[]>([]);
     const [loading, setLoading] = useState(true);
+    const [processing, setProcessing] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
     const [selectedWorkspaces, setSelectedWorkspaces] = useState<Record<string, string>>({});
 
     useEffect(() => {
-        fetchPendingUsers();
-    }, []);
+        if (session) {
+            fetchApprovals();
+        } else if (!loading && !session) {
+            setLoading(false);
+            setError('SESSION_NOT_INITIALIZED');
+        }
+    }, [session]);
 
-    const fetchPendingUsers = async () => {
+    const fetchApprovals = async () => {
         try {
-            const { data, error } = await supabase
-                .from('users')
-                .select('id, email, full_name, created_at, metadata')
-                .eq('status', 'pending')
-                .order('created_at', { ascending: false });
+            setLoading(true);
+            setError(null);
+            console.log('AdminDashboard: Fetching approvals...');
 
-            if (error) throw error;
-            setPendingUsers(data || []);
+            if (!session?.access_token) {
+                console.warn('AdminDashboard: Missing access token');
+                return;
+            }
+
+            const response = await axios.get('/api/v1/admin/approvals', {
+                headers: { Authorization: `Bearer ${session.access_token}` }
+            });
+
+            console.log('AdminDashboard: Data received', response.data);
+            const data = response.data as PendingApproval[];
+            setApprovals(data);
 
             const initSelected: Record<string, string> = {};
-            data?.forEach(u => {
-                const preference = (u as any).metadata?.requested_role;
-                initSelected[u.id] = preference || 'designer';
+            data.forEach(app => {
+                initSelected[app.id] = app.data?.requested_role || 'designer';
             });
             setSelectedWorkspaces(initSelected);
-        } catch (error) {
-            console.error('Error fetching pending users:', error);
+        } catch (err: any) {
+            console.error('Error fetching approvals:', err);
+            setError(err.response?.data?.error || err.message || 'FAILED_TO_SYNC_WITH_SECURITY_CORE');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleWorkspaceChange = (userId: string, workspaceId: string) => {
-        setSelectedWorkspaces(prev => ({ ...prev, [userId]: workspaceId }));
+    const handleWorkspaceChange = (approvalId: string, workspaceId: string) => {
+        setSelectedWorkspaces(prev => ({ ...prev, [approvalId]: workspaceId }));
     };
 
-    const handleApprove = async (userId: string) => {
+    const handleApprove = async (approvalId: string) => {
         try {
-            const assignedWorkspace = selectedWorkspaces[userId];
-            const compositeStatus = `active:${assignedWorkspace}`;
+            setProcessing(approvalId);
+            const workspace = selectedWorkspaces[approvalId];
 
-            const { error } = await supabase
-                .from('users')
-                .update({ status: compositeStatus })
-                .eq('id', userId);
+            await axios.post(`/api/v1/admin/approvals/${approvalId}/approve`,
+                { workspace },
+                { headers: { Authorization: `Bearer ${session?.access_token}` } }
+            );
 
-            if (error) throw error;
-            setPendingUsers(pendingUsers.filter(u => u.id !== userId));
-        } catch (error) {
-            console.error('Error approving user:', error);
+            setApprovals(prev => prev.filter(a => a.id !== approvalId));
+        } catch (err: any) {
+            console.error('Error approving request:', err);
+            alert('AUTHORIZATION_FAILURE: REQUEST_NOT_PROCESSED');
+        } finally {
+            setProcessing(null);
         }
     };
 
-    const handleReject = async (userId: string) => {
-        try {
-            const { error } = await supabase
-                .from('users')
-                .update({ status: 'rejected' })
-                .eq('id', userId);
+    const handleReject = async (approvalId: string) => {
+        if (!window.confirm('PERMANENTLY_REVOKE_REQUEST?')) return;
 
-            if (error) throw error;
-            setPendingUsers(pendingUsers.filter(u => u.id !== userId));
-        } catch (error) {
-            console.error('Error rejecting user:', error);
+        try {
+            setProcessing(approvalId);
+            await axios.post(`/api/v1/admin/approvals/${approvalId}/reject`,
+                { reason: 'Administrative Decision' },
+                { headers: { Authorization: `Bearer ${session?.access_token}` } }
+            );
+
+            setApprovals(prev => prev.filter(a => a.id !== approvalId));
+        } catch (err: any) {
+            console.error('Error rejecting request:', err);
+            alert('REVOCATION_FAILURE: UNABLE_TO_TERMINATE_REQUEST');
+        } finally {
+            setProcessing(null);
         }
     };
 
@@ -121,12 +153,20 @@ const AdminDashboard: React.FC = () => {
                     </div>
                 </header>
 
+                {error && (
+                    <div style={{ backgroundColor: 'rgba(255,0,0,0.1)', border: '1px solid var(--primary-red)', padding: '15px 25px', borderRadius: '8px', marginBottom: '30px', display: 'flex', alignItems: 'center', gap: '15px', color: 'var(--primary-red)', fontWeight: 800, fontSize: '12px', letterSpacing: '1px' }}>
+                        <FiAlertCircle size={20} />
+                        {error}
+                        <button onClick={fetchApprovals} style={{ marginLeft: 'auto', backgroundColor: 'var(--primary-red)', color: 'white', border: 'none', padding: '6px 15px', borderRadius: '4px', cursor: 'pointer', fontSize: '10px', fontWeight: 900 }}>RETRY_SYNC</button>
+                    </div>
+                )}
+
                 <div style={{ backgroundColor: '#0D0D11', borderRadius: '12px', border: '1px solid #222', overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}>
                     <div style={{ padding: '25px 30px', borderBottom: '1px solid #222', backgroundColor: '#0A0A0E', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <h2 style={{ margin: 0, fontSize: '14px', fontWeight: 900, letterSpacing: '2px', display: 'flex', alignItems: 'center', gap: '15px', color: '#888' }}>
                             <FiClock color="#FF9900" /> PENDING_REQUESTS
                             <span style={{ backgroundColor: '#FF9900', color: '#000', padding: '2px 8px', borderRadius: '4px', fontSize: '10px' }}>
-                                {pendingUsers.length}
+                                {approvals.length}
                             </span>
                         </h2>
                     </div>
@@ -136,7 +176,7 @@ const AdminDashboard: React.FC = () => {
                             <FiActivity className="animate-pulse" size={40} />
                             <div style={{ marginTop: '20px', fontSize: '11px', fontWeight: 900, letterSpacing: '2px' }}>RETRIEVING_DATA_STREAM...</div>
                         </div>
-                    ) : pendingUsers.length === 0 ? (
+                    ) : approvals.length === 0 ? (
                         <div style={{ padding: '80px 40px', textAlign: 'center', color: '#444' }}>
                             <div style={{ fontSize: '64px', marginBottom: '20px' }}><FiUserCheck /></div>
                             <div style={{ fontSize: '12px', fontWeight: 900, letterSpacing: '2px' }}>NO_PENDING_SECURITY_CLEARANCE_REQUIRED</div>
@@ -153,25 +193,26 @@ const AdminDashboard: React.FC = () => {
                             </thead>
                             <tbody>
                                 <AnimatePresence>
-                                    {pendingUsers.map((u, i) => (
+                                    {approvals.map((app, i) => (
                                         <motion.tr
-                                            key={u.id}
+                                            key={app.id}
                                             initial={{ opacity: 0, y: 10 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             transition={{ delay: i * 0.1 }}
-                                            style={{ borderBottom: '1px solid #1a1a20' }}
+                                            style={{ borderBottom: '1px solid #1a1a20', opacity: processing === app.id ? 0.5 : 1 }}
                                         >
                                             <td style={{ padding: '25px 30px' }}>
-                                                <div style={{ fontWeight: 800, fontSize: '14px', color: '#FFF' }}>{u.full_name.toUpperCase()}</div>
+                                                <div style={{ fontWeight: 800, fontSize: '14px', color: '#FFF' }}>{(app.data?.full_name || 'UNKNOWN').toUpperCase()}</div>
                                                 <div style={{ fontSize: '10px', color: 'var(--primary-blue)', marginTop: '6px', fontWeight: 900, letterSpacing: '1px' }}>
-                                                    REQ_ROLE: {u.metadata?.requested_role?.toUpperCase() || 'GENERAL_ACCESS'}
+                                                    REQ_ROLE: {app.data?.requested_role?.toUpperCase() || 'GENERAL_ACCESS'}
                                                 </div>
                                             </td>
-                                            <td style={{ padding: '25px 30px', color: '#666', fontSize: '13px', fontFamily: '"Fira Code", monospace' }}>{u.email}</td>
+                                            <td style={{ padding: '25px 30px', color: '#666', fontSize: '13px', fontFamily: '"Fira Code", monospace' }}>{app.data?.email || app.requester?.email}</td>
                                             <td style={{ padding: '25px 30px' }}>
                                                 <select
-                                                    value={selectedWorkspaces[u.id] || 'designer'}
-                                                    onChange={(e) => handleWorkspaceChange(u.id, e.target.value)}
+                                                    value={selectedWorkspaces[app.id] || 'designer'}
+                                                    onChange={(e) => handleWorkspaceChange(app.id, e.target.value)}
+                                                    disabled={processing === app.id}
                                                     style={{
                                                         padding: '12px 15px',
                                                         borderRadius: '4px',
@@ -184,7 +225,7 @@ const AdminDashboard: React.FC = () => {
                                                         fontSize: '11px',
                                                         fontWeight: 900,
                                                         letterSpacing: '1px',
-                                                        cursor: 'pointer'
+                                                        cursor: processing === app.id ? 'not-allowed' : 'pointer'
                                                     }}
                                                 >
                                                     {WORKSPACES.map(ws => (
@@ -195,14 +236,16 @@ const AdminDashboard: React.FC = () => {
                                             <td style={{ padding: '25px 30px', textAlign: 'right' }}>
                                                 <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
                                                     <button
-                                                        onClick={() => handleApprove(u.id)}
-                                                        style={{ backgroundColor: 'var(--primary-blue)', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '4px', cursor: 'pointer', fontWeight: 900, fontSize: '10px', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                                                        onClick={() => handleApprove(app.id)}
+                                                        disabled={processing !== null}
+                                                        style={{ backgroundColor: 'var(--primary-blue)', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '4px', cursor: processing !== null ? 'not-allowed' : 'pointer', fontWeight: 900, fontSize: '10px', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px', opacity: processing !== null && processing !== app.id ? 0.3 : 1 }}
                                                     >
-                                                        <FiCheck /> GRANT_ACCESS
+                                                        {processing === app.id ? <FiActivity className="animate-spin" /> : <FiCheck />} GRANT_ACCESS
                                                     </button>
                                                     <button
-                                                        onClick={() => handleReject(u.id)}
-                                                        style={{ backgroundColor: 'transparent', color: '#FF3333', border: '1px solid #222', padding: '10px 15px', borderRadius: '4px', cursor: 'pointer', fontWeight: 900, fontSize: '10px' }}
+                                                        onClick={() => handleReject(app.id)}
+                                                        disabled={processing !== null}
+                                                        style={{ backgroundColor: 'transparent', color: '#FF3333', border: '1px solid #222', padding: '10px 15px', borderRadius: '4px', cursor: processing !== null ? 'not-allowed' : 'pointer', fontWeight: 900, fontSize: '10px', opacity: processing !== null && processing !== app.id ? 0.3 : 1 }}
                                                     >
                                                         <FiX />
                                                     </button>
@@ -228,7 +271,9 @@ const AdminDashboard: React.FC = () => {
 
             <style>{`
                 .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+                .animate-spin { animation: spin 1s linear infinite; }
                 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+                @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
             `}</style>
         </div>
     );

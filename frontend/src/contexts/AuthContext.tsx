@@ -10,6 +10,7 @@ interface AuthContextType {
     assignedWorkspace: string | null;
     status: string | null;
     signOut: () => Promise<void>;
+    refreshAccount: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -20,6 +21,7 @@ const AuthContext = createContext<AuthContextType>({
     assignedWorkspace: null,
     status: null,
     signOut: async () => { },
+    refreshAccount: async () => { },
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -152,6 +154,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         assignedWorkspace,
         status,
         signOut,
+        refreshAccount: async () => await fetchUserDetails(user),
     };
 
     if (loading) {

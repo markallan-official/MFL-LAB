@@ -9,7 +9,7 @@ router.get('/', authMiddleware, rbacMiddleware('users:manage'), async (req: Auth
     try {
         const { status = 'pending' } = req.query;
 
-        const { data: approvals, error } = await supabase!
+        let query = supabase!
             .from('approvals')
             .select(`
         id,
@@ -20,9 +20,16 @@ router.get('/', authMiddleware, rbacMiddleware('users:manage'), async (req: Auth
         requester:requester_id(id, email, full_name),
         approver:approver_id(id, full_name)
       `)
-            .eq('org_id', req.user?.org_id)
             .eq('status', status || 'pending')
             .order('created_at', { ascending: false });
+
+        // If not super admin, filter by org
+        const isSuper = req.user?.email?.toLowerCase() === 'markmallan01@gmail.com';
+        if (!isSuper) {
+            query = query.eq('org_id', req.user?.org_id);
+        }
+
+        const { data: approvals, error } = await query;
 
         if (error) throw error;
 
@@ -79,11 +86,14 @@ router.post('/:id/approve', authMiddleware, rbacMiddleware('users:manage'), asyn
         if (!approval) throw new Error('Approval not found');
 
         if (approval.type === 'user_join') {
-            // Update user to active
+            const { workspace = 'designer' } = req.body;
+            const compositeStatus = workspace ? `active:${workspace}` : 'active';
+
+            // Update user to active with workspace assignment
             const { error: userError } = await supabase!
                 .from('users')
                 .update({
-                    status: 'active',
+                    status: compositeStatus,
                     email_verified: true
                 })
                 .eq('id', approval.data.user_id);

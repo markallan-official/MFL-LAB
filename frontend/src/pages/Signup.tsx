@@ -63,7 +63,7 @@ export const Signup: React.FC = () => {
         setLoading(true);
 
         try {
-            const response = await fetch('http://localhost:8001/api/v1/auth/signup', {
+            const response = await fetch('/api/v1/auth/signup', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

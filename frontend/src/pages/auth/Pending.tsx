@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 
 const Pending: React.FC = () => {
-    const { signOut } = useAuth();
+    const { signOut, refreshAccount } = useAuth();
     const navigate = useNavigate();
 
     const handleLogout = async () => {
@@ -31,16 +31,29 @@ const Pending: React.FC = () => {
                     You will be notified once an administrator has reviewed your request.
                 </p>
 
-                <button
-                    onClick={handleLogout}
-                    style={{
-                        padding: '12px 24px', borderRadius: '8px', border: '1px solid #444',
-                        backgroundColor: 'transparent', color: '#F5F5F5', fontSize: '14px', fontWeight: 500,
-                        cursor: 'pointer', transition: 'background-color 0.2s'
-                    }}
-                >
-                    Sign Out Return
-                </button>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                    <button
+                        onClick={refreshAccount}
+                        style={{
+                            padding: '14px 24px', borderRadius: '8px', border: 'none',
+                            backgroundColor: '#0066FF', color: 'white', fontSize: '15px', fontWeight: 600,
+                            cursor: 'pointer', transition: 'all 0.2s', boxShadow: '0 4px 15px rgba(0, 102, 255, 0.3)'
+                        }}
+                    >
+                        Check Approval Status
+                    </button>
+
+                    <button
+                        onClick={handleLogout}
+                        style={{
+                            padding: '12px 24px', borderRadius: '8px', border: '1px solid #444',
+                            backgroundColor: 'transparent', color: '#A0A0A0', fontSize: '13px', fontWeight: 500,
+                            cursor: 'pointer', transition: 'background-color 0.2s'
+                        }}
+                    >
+                        Sign Out / Return to Login
+                    </button>
+                </div>
             </div>
         </div>
     );

