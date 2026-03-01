@@ -11,22 +11,22 @@ Ensure your Supabase project is ready for production:
 3.  **Database Tables**: Ensure all tables (`users`, `user_assignments`, etc.) are created and RLS (Row Level Security) policies are active.
 4.  **SMTP**: For reliable emails, configure a custom SMTP provider (like Sengrid or Resend) in `Authentication > Settings > SMTP`.
 
-## 2. Vercel Deployment (Zero-Config)
+## 2. Netlify Deployment (Recommended - No Limits)
 
-I have hardcoded the credentials into the system CORE for you. You now only need to deploy with **ZERO** configuration.
+I have optimized the platform for Netlify so you can deploy instantly without Vercel's daily limits.
 
-1.  **Import**: Select your repository `MFL-LAB` in Vercel.
-2.  **Project Name**: Use `mfl-labs`.
-3.  **Root Directory**: Keep it as the **Default (Root)**.
-    > [!IMPORTANT]
-    > **Do NOT select the `backend` folder** as the Root Directory. If you do, you will only see the API message and not the dashboard.
-4.  **Framework Preset**: Select **`Vite`**.
-5.  **Environment Variables**: **SKIP THIS SECTION**. (Leave it empty).
-6.  **Build Settings**:
-    > [!IMPORTANT]
-    > **RESET ALL SETTINGS**: In your Vercel project, go to **Settings > General** and ensure "Build Command", "Output Directory", and **"Install Command"** are all set to **"OFF"** (or "Default"). 
-    > If you see `npm install --prefix=..` in the "Install Command", **DELETE IT**. It must be empty/default.
-7.  **Deploy**: Vercel will now correctly build the frontend and serve the API.
+1.  **Login**: Go to [Netlify](https://app.netlify.com/).
+2.  **Add New Site**: Select **Import from Git** and choose your `MFL-LAB` repository.
+3.  **Site Settings**:
+    *   **Build Command**: `npm run build --workspace=@saas/frontend`
+    *   **Publish Directory**: `frontend/dist`
+    *   **Functions Directory**: `netlify/functions` (Should be auto-detected).
+4.  **Environment Variables**: Add your **SMTP** variables in **Site Configuration > Environment Variables** (the same ones we listed for Vercel).
+5.  **Deploy**: Click **Deploy site**.
+
+## 3. Vercel Deployment (Alternative)
+*Note: Only if you have not hit your daily deployment limit.*
+... (rest of the Vercel guide)
 
 ### 2.1. Email Support (Optional)
 If you want the "Access Granted" emails to be sent live from your Vercel deployment, add these variables in **Project Settings > Environment Variables**:
