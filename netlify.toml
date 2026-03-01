@@ -1,7 +1,7 @@
 [build]
-  command = "npm run build --workspace=@saas/frontend"
+  command = "npm run build"
   publish = "frontend/dist"
-  functions = "netlify/functions"
+  functions = "api"
 
 [[redirects]]
   from = "/api/*"
