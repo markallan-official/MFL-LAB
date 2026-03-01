@@ -16,6 +16,7 @@
         "test:e2e": "playwright test"
     },
     "dependencies": {
+        "@supabase/supabase-js": "^2.97.0",
         "@emotion/react": "^11.14.0",
         "@emotion/styled": "^11.14.1",
         "@hookform/resolvers": "^3.3.1",
