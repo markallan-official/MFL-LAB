@@ -24,6 +24,15 @@ I have hardcoded the credentials into the system CORE for you. You now only need
 5.  **Environment Variables**: **SKIP THIS SECTION**. (Leave it empty).
 6.  **Deploy**: Vercel will automatically build the frontend and serve the API.
 
+### 2.1. Email Support (Optional)
+If you want the "Access Granted" emails to be sent live from your Vercel deployment, add these variables in **Project Settings > Environment Variables**:
+
+*   `SMTP_HOST`: `smtp.gmail.com`
+*   `SMTP_PORT`: `587`
+*   `SMTP_SECURE`: `false`
+*   `SMTP_USER`: `markmallan01@gmail.com`
+*   `SMTP_PASS`: `etimcnnlnrtotnxn`
+
 ## 3. Post-Deployment Steps
 
 1.  **Initial Admin Setup**: Manually set your status to `admin` in the Supabase `users` table for your email `markmallan01@gmail.com`.
