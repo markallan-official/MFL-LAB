@@ -33,41 +33,74 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [status, setStatus] = useState<string | null>(null);
 
     useEffect(() => {
-        // Fetch initial session
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            setSession(session);
-            setUser(session?.user ?? null);
-            fetchUserDetails(session?.user);
+        let mounted = true;
+
+        // Force-clear loading after a long delay (7s) as a safety latch
+        const safetyLatch = setTimeout(() => {
+            if (mounted && loading) {
+                console.warn('AuthContext: Safety latch triggered. Forcing loading to false.');
+                setLoading(false);
+            }
+        }, 7000);
+
+        console.log('AuthContext: Initializing...');
+
+        // Unified session checker
+        const initAuth = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                console.log('AuthContext: Initial session check completed', !!session);
+                if (mounted) {
+                    setSession(session);
+                    setUser(session?.user ?? null);
+                    await fetchUserDetails(session?.user);
+                }
+            } catch (err) {
+                console.error('AuthContext: Init failed', err);
+                if (mounted) setLoading(false);
+            }
+        };
+
+        initAuth();
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+            console.log('AuthContext: State change detected:', event);
+            if (mounted) {
+                setSession(newSession);
+                setUser(newSession?.user ?? null);
+                if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+                    await fetchUserDetails(newSession?.user);
+                } else {
+                    setLoading(false);
+                }
+            }
         });
 
-        // Listen for auth changes
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            // If the user just signed in or state changed, we MUST be in a loading state 
-            // until fetchUserDetails finishes to prevent race condition redirects
-            setLoading(true);
-            setSession(session);
-            setUser(session?.user ?? null);
-            await fetchUserDetails(session?.user);
-        });
-
-        return () => subscription.unsubscribe();
+        return () => {
+            mounted = false;
+            clearTimeout(safetyLatch);
+            subscription.unsubscribe();
+        };
     }, []);
 
     const fetchUserDetails = async (user: User | undefined | null) => {
         if (!user) {
-            setIsAdmin(false);
-            setAssignedWorkspace(null);
-            setStatus(null);
+            console.log('AuthContext: No user to fetch details for');
+            if (isAdmin || assignedWorkspace || status) {
+                setIsAdmin(false);
+                setAssignedWorkspace(null);
+                setStatus(null);
+            }
             setLoading(false);
             return;
         }
+
+        console.log('AuthContext: Fetching DB details for', user.email);
 
         // Hardcoded Super Admin check
         const isSuperAdmin = user.email?.toLowerCase() === 'markmallan01@gmail.com';
         setIsAdmin(isSuperAdmin);
 
-        // If Super Admin, we can skip DB check for status if we want, 
-        // but let's do it anyway to get any potential metadata
         try {
             const { data, error } = await supabase
                 .from('users')
@@ -75,20 +108,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 .eq('id', user.id)
                 .single();
 
-            if (!error && data) {
+            if (error) {
+                console.warn('AuthContext: DB fetch error', error);
+                if (isSuperAdmin) {
+                    setStatus('active');
+                    setAssignedWorkspace('unassigned');
+                }
+            } else if (data) {
+                console.log('AuthContext: DB Data retrieved', data.status);
                 setStatus(data.status);
                 if (data.status.startsWith('active:')) {
                     setAssignedWorkspace(data.status.split(':')[1]);
                 } else if (data.status === 'active' || isSuperAdmin) {
                     setAssignedWorkspace('unassigned');
                 }
-            } else if (isSuperAdmin) {
-                // If it's the admin but record is missing in DB yet
-                setStatus('active');
-                setAssignedWorkspace('unassigned');
             }
         } catch (e) {
-            console.error(e);
+            console.error('AuthContext: Unexpected detail fetch error', e);
             if (isSuperAdmin) {
                 setStatus('active');
                 setAssignedWorkspace('unassigned');
@@ -100,6 +136,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const signOut = async () => {
         await supabase.auth.signOut();
+    };
+
+    const handleHardReset = async () => {
+        localStorage.clear();
+        await supabase.auth.signOut();
+        window.location.reload();
     };
 
     const value = {
@@ -114,7 +156,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (loading) {
         return (
-            <div style={{ backgroundColor: '#050507', height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#0066FF' }}>
+            <div style={{ backgroundColor: '#050507', height: '100vh', width: '100vw', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#0066FF', textAlign: 'center', padding: '20px' }}>
                 <div
                     style={{
                         width: '50px',
@@ -125,12 +167,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     }}
                     className="hex-glow-animation"
                 />
-                <div style={{ letterSpacing: '8px', fontWeight: 900, fontSize: '12px', color: '#FFF', textAlign: 'center' }}>
+                <div style={{ letterSpacing: '8px', fontWeight: 900, fontSize: '12px', color: '#FFF' }}>
                     SYNCHRONIZING NEURAL GATEWAY
                 </div>
                 <div style={{ marginTop: '15px', fontSize: '9px', color: '#0066FF', opacity: 0.8, letterSpacing: '3px', fontWeight: 700 }}>
                     VERIFYING_CREDENTIALS // STANDBY
                 </div>
+
+                <button
+                    onClick={handleHardReset}
+                    style={{
+                        marginTop: '40px',
+                        backgroundColor: 'transparent',
+                        color: 'rgba(255,255,255,0.4)',
+                        border: '1px solid rgba(255,255,255,0.1)',
+                        padding: '8px 16px',
+                        fontSize: '9px',
+                        cursor: 'pointer',
+                        letterSpacing: '2px'
+                    }}
+                >
+                    FORCE SESSION RESET
+                </button>
             </div>
         );
     }
