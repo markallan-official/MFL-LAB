@@ -18,56 +18,42 @@ import {
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 
-interface PendingApproval {
+interface UserProfile {
     id: string;
-    type: string;
-    status: string;
+    email: string;
+    role: string;
+    approved: boolean;
     created_at: string;
-    data: {
-        user_id: string;
-        email: string;
-        full_name: string;
-        requested_at: string;
-        requested_role?: string;
-    };
-    requester: {
-        id: string;
-        email: string;
-        full_name: string;
-    };
 }
 
-const WORKSPACES = [
-    { id: 'designer', name: 'GRAPHIC_DESIGNER', icon: <FiLayers />, color: 'var(--primary-red)' },
-    { id: 'analyst', name: 'SYSTEM_ANALYST', icon: <FiDatabase />, color: 'var(--primary-blue)' },
-    { id: 'qa', name: 'TEST_ENGINEER', icon: <FiShield />, color: '#00FF99' },
-    { id: 'ai-builder', name: 'AI_BUILDER', icon: <FiCpu />, color: 'var(--primary-red)' },
-    { id: 'integration', name: 'CI/CD_PIPELINE', icon: <FiLink />, color: '#9900FF' },
-    { id: 'client', name: 'CLIENT_PORTAL', icon: <FiGlobe />, color: '#BBB' }
+const ROLES = [
+    { id: 'user', name: 'STANDARD_USER', icon: <FiLayers />, color: 'var(--primary-blue)' },
+    { id: 'admin', name: 'ADMINISTRATOR', icon: <FiShield />, color: 'var(--primary-red)' },
+    { id: 'manager', name: 'TEAM_MANAGER', icon: <FiGlobe />, color: '#00FF99' }
 ];
 
 const AdminDashboard: React.FC = () => {
     const { user, session, isAdmin } = useAuth();
-    const [approvals, setApprovals] = useState<PendingApproval[]>([]);
+    const [pendingProfiles, setPendingProfiles] = useState<UserProfile[]>([]);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [selectedWorkspaces, setSelectedWorkspaces] = useState<Record<string, string>>({});
+    const [selectedRoles, setSelectedRoles] = useState<Record<string, string>>({});
 
     useEffect(() => {
         if (session) {
-            fetchApprovals();
+            fetchProfiles();
         } else if (!loading && !session) {
             setLoading(false);
             setError('SESSION_NOT_INITIALIZED');
         }
     }, [session]);
 
-    const fetchApprovals = async () => {
+    const fetchProfiles = async () => {
         try {
             setLoading(true);
             setError(null);
-            console.log('AdminDashboard: Fetching approvals...');
+            console.log('AdminDashboard: Fetching pending profiles...');
 
             if (!session?.access_token) {
                 console.warn('AdminDashboard: Missing access token');
@@ -78,24 +64,22 @@ const AdminDashboard: React.FC = () => {
                 headers: { Authorization: `Bearer ${session.access_token}` }
             });
 
-            console.log('AdminDashboard: Data received', response.data);
-            const data = response.data as PendingApproval[];
-            setApprovals(data);
+            console.log('AdminDashboard: Profiles received', response.data);
+            const data = response.data as UserProfile[];
+            setPendingProfiles(data);
 
-            const initSelected: Record<string, string> = {};
-            data.forEach(app => {
-                initSelected[app.id] = app.data?.requested_role || 'designer';
+            const initRoles: Record<string, string> = {};
+            data.forEach(p => {
+                initRoles[p.id] = 'user';
             });
-            setSelectedWorkspaces(initSelected);
+            setSelectedRoles(initRoles);
         } catch (err: any) {
-            console.error('Error fetching approvals:', err);
+            console.error('Error fetching profiles:', err);
             const errorMsg = err.response?.data?.error || err.message || 'FAILED_TO_SYNC_WITH_SECURITY_CORE';
             const status = err.response?.status;
 
-            // Bypass "User not found" or Auth errors for super admin - they might not have a database record yet
             if (isAdmin && (status === 401 || errorMsg.toLowerCase().includes('user not found'))) {
-                console.log('AdminDashboard: Bypassing Auth Error for Super Admin');
-                setApprovals([]);
+                setPendingProfiles([]);
                 setError(null);
                 return;
             }
@@ -106,40 +90,40 @@ const AdminDashboard: React.FC = () => {
         }
     };
 
-    const handleWorkspaceChange = (approvalId: string, workspaceId: string) => {
-        setSelectedWorkspaces(prev => ({ ...prev, [approvalId]: workspaceId }));
+    const handleRoleChange = (profileId: string, role: string) => {
+        setSelectedRoles(prev => ({ ...prev, [profileId]: role }));
     };
 
-    const handleApprove = async (approvalId: string) => {
+    const handleApprove = async (profileId: string) => {
         try {
-            setProcessing(approvalId);
-            const workspace = selectedWorkspaces[approvalId];
+            setProcessing(profileId);
+            const role = selectedRoles[profileId];
 
-            await axios.post(`/api/v1/admin/approvals/${approvalId}/approve`,
-                { workspace },
+            await axios.post(`/api/v1/admin/approvals/${profileId}/approve`,
+                { role },
                 { headers: { Authorization: `Bearer ${session?.access_token}` } }
             );
 
-            setApprovals(prev => prev.filter(a => a.id !== approvalId));
+            setPendingProfiles(prev => prev.filter(p => p.id !== profileId));
         } catch (err: any) {
-            console.error('Error approving request:', err);
+            console.error('Error approving user:', err);
             alert('AUTHORIZATION_FAILURE: REQUEST_NOT_PROCESSED');
         } finally {
             setProcessing(null);
         }
     };
 
-    const handleReject = async (approvalId: string) => {
+    const handleReject = async (profileId: string) => {
         if (!window.confirm('PERMANENTLY_REVOKE_REQUEST?')) return;
 
         try {
-            setProcessing(approvalId);
-            await axios.post(`/api/v1/admin/approvals/${approvalId}/reject`,
-                { reason: 'Administrative Decision' },
+            setProcessing(profileId);
+            await axios.post(`/api/v1/admin/approvals/${profileId}/reject`,
+                {},
                 { headers: { Authorization: `Bearer ${session?.access_token}` } }
             );
 
-            setApprovals(prev => prev.filter(a => a.id !== approvalId));
+            setPendingProfiles(prev => prev.filter(p => p.id !== profileId));
         } catch (err: any) {
             console.error('Error rejecting request:', err);
             alert('REVOCATION_FAILURE: UNABLE_TO_TERMINATE_REQUEST');
@@ -168,7 +152,7 @@ const AdminDashboard: React.FC = () => {
                     <div style={{ backgroundColor: 'rgba(255,0,0,0.1)', border: '1px solid var(--primary-red)', padding: '15px 25px', borderRadius: '8px', marginBottom: '30px', display: 'flex', alignItems: 'center', gap: '15px', color: 'var(--primary-red)', fontWeight: 800, fontSize: '12px', letterSpacing: '1px' }}>
                         <FiAlertCircle size={20} />
                         {error}
-                        <button onClick={fetchApprovals} style={{ marginLeft: 'auto', backgroundColor: 'var(--primary-red)', color: 'white', border: 'none', padding: '6px 15px', borderRadius: '4px', cursor: 'pointer', fontSize: '10px', fontWeight: 900 }}>RETRY_SYNC</button>
+                        <button onClick={fetchProfiles} style={{ marginLeft: 'auto', backgroundColor: 'var(--primary-red)', color: 'white', border: 'none', padding: '6px 15px', borderRadius: '4px', cursor: 'pointer', fontSize: '10px', fontWeight: 900 }}>RETRY_SYNC</button>
                     </div>
                 )}
 
@@ -177,7 +161,7 @@ const AdminDashboard: React.FC = () => {
                         <h2 style={{ margin: 0, fontSize: '14px', fontWeight: 900, letterSpacing: '2px', display: 'flex', alignItems: 'center', gap: '15px', color: '#888' }}>
                             <FiClock color="#FF9900" /> PENDING_REQUESTS
                             <span style={{ backgroundColor: '#FF9900', color: '#000', padding: '2px 8px', borderRadius: '4px', fontSize: '10px' }}>
-                                {approvals.length}
+                                {pendingProfiles.length}
                             </span>
                         </h2>
                     </div>
@@ -187,7 +171,7 @@ const AdminDashboard: React.FC = () => {
                             <FiActivity className="animate-pulse" size={40} />
                             <div style={{ marginTop: '20px', fontSize: '11px', fontWeight: 900, letterSpacing: '2px' }}>RETRIEVING_DATA_STREAM...</div>
                         </div>
-                    ) : approvals.length === 0 ? (
+                    ) : pendingProfiles.length === 0 ? (
                         <div style={{ padding: '80px 40px', textAlign: 'center', color: '#444' }}>
                             <div style={{ fontSize: '64px', marginBottom: '20px' }}><FiUserCheck /></div>
                             <div style={{ fontSize: '12px', fontWeight: 900, letterSpacing: '2px' }}>NO_PENDING_SECURITY_CLEARANCE_REQUIRED</div>
@@ -196,7 +180,7 @@ const AdminDashboard: React.FC = () => {
                         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                             <thead>
                                 <tr style={{ backgroundColor: '#0A0A0E', color: '#444', fontSize: '10px', fontWeight: 900, letterSpacing: '2px', textTransform: 'uppercase' }}>
-                                    <th style={{ padding: '20px 30px' }}>IDENTIFIER / ROLE_PREF</th>
+                                    <th style={{ padding: '20px 30px' }}>IDENTIFIER / CREATED</th>
                                     <th style={{ padding: '20px 30px' }}><FiMail /> COMPONENT_ADDRESS</th>
                                     <th style={{ padding: '20px 30px' }}>ACCESS_LEVEL_ASSIGNMENT</th>
                                     <th style={{ padding: '20px 30px', textAlign: 'right' }}>COMMANDS</th>
@@ -204,26 +188,26 @@ const AdminDashboard: React.FC = () => {
                             </thead>
                             <tbody>
                                 <AnimatePresence>
-                                    {approvals.map((app, i) => (
+                                    {pendingProfiles.map((profile, i) => (
                                         <motion.tr
-                                            key={app.id}
+                                            key={profile.id}
                                             initial={{ opacity: 0, y: 10 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             transition={{ delay: i * 0.1 }}
-                                            style={{ borderBottom: '1px solid #1a1a20', opacity: processing === app.id ? 0.5 : 1 }}
+                                            style={{ borderBottom: '1px solid #1a1a20', opacity: processing === profile.id ? 0.5 : 1 }}
                                         >
                                             <td style={{ padding: '25px 30px' }}>
-                                                <div style={{ fontWeight: 800, fontSize: '14px', color: '#FFF' }}>{(app.data?.full_name || 'UNKNOWN').toUpperCase()}</div>
+                                                <div style={{ fontWeight: 800, fontSize: '14px', color: '#FFF' }}>USER_{profile.id.substring(0, 8).toUpperCase()}</div>
                                                 <div style={{ fontSize: '10px', color: 'var(--primary-blue)', marginTop: '6px', fontWeight: 900, letterSpacing: '1px' }}>
-                                                    REQ_ROLE: {app.data?.requested_role?.toUpperCase() || 'GENERAL_ACCESS'}
+                                                    DATE: {new Date(profile.created_at).toLocaleDateString()}
                                                 </div>
                                             </td>
-                                            <td style={{ padding: '25px 30px', color: '#666', fontSize: '13px', fontFamily: '"Fira Code", monospace' }}>{app.data?.email || app.requester?.email}</td>
+                                            <td style={{ padding: '25px 30px', color: '#666', fontSize: '13px', fontFamily: '"Fira Code", monospace' }}>{profile.email}</td>
                                             <td style={{ padding: '25px 30px' }}>
                                                 <select
-                                                    value={selectedWorkspaces[app.id] || 'designer'}
-                                                    onChange={(e) => handleWorkspaceChange(app.id, e.target.value)}
-                                                    disabled={processing === app.id}
+                                                    value={selectedRoles[profile.id] || 'user'}
+                                                    onChange={(e) => handleRoleChange(profile.id, e.target.value)}
+                                                    disabled={processing === profile.id}
                                                     style={{
                                                         padding: '12px 15px',
                                                         borderRadius: '4px',
@@ -236,27 +220,27 @@ const AdminDashboard: React.FC = () => {
                                                         fontSize: '11px',
                                                         fontWeight: 900,
                                                         letterSpacing: '1px',
-                                                        cursor: processing === app.id ? 'not-allowed' : 'pointer'
+                                                        cursor: processing === profile.id ? 'not-allowed' : 'pointer'
                                                     }}
                                                 >
-                                                    {WORKSPACES.map(ws => (
-                                                        <option key={ws.id} value={ws.id}>{ws.name}</option>
+                                                    {ROLES.map(role => (
+                                                        <option key={role.id} value={role.id}>{role.name}</option>
                                                     ))}
                                                 </select>
                                             </td>
                                             <td style={{ padding: '25px 30px', textAlign: 'right' }}>
                                                 <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
                                                     <button
-                                                        onClick={() => handleApprove(app.id)}
+                                                        onClick={() => handleApprove(profile.id)}
                                                         disabled={processing !== null}
-                                                        style={{ backgroundColor: 'var(--primary-blue)', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '4px', cursor: processing !== null ? 'not-allowed' : 'pointer', fontWeight: 900, fontSize: '10px', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px', opacity: processing !== null && processing !== app.id ? 0.3 : 1 }}
+                                                        style={{ backgroundColor: 'var(--primary-blue)', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '4px', cursor: processing !== null ? 'not-allowed' : 'pointer', fontWeight: 900, fontSize: '10px', letterSpacing: '1px', display: 'flex', alignItems: 'center', gap: '8px', opacity: processing !== null && processing !== profile.id ? 0.3 : 1 }}
                                                     >
-                                                        {processing === app.id ? <FiActivity className="animate-spin" /> : <FiCheck />} GRANT_ACCESS
+                                                        {processing === profile.id ? <FiActivity className="animate-spin" /> : <FiCheck />} GRANT_ACCESS
                                                     </button>
                                                     <button
-                                                        onClick={() => handleReject(app.id)}
+                                                        onClick={() => handleReject(profile.id)}
                                                         disabled={processing !== null}
-                                                        style={{ backgroundColor: 'transparent', color: '#FF3333', border: '1px solid #222', padding: '10px 15px', borderRadius: '4px', cursor: processing !== null ? 'not-allowed' : 'pointer', fontWeight: 900, fontSize: '10px', opacity: processing !== null && processing !== app.id ? 0.3 : 1 }}
+                                                        style={{ backgroundColor: 'transparent', color: '#FF3333', border: '1px solid #222', padding: '10px 15px', borderRadius: '4px', cursor: processing !== null ? 'not-allowed' : 'pointer', fontWeight: 900, fontSize: '10px', opacity: processing !== null && processing !== profile.id ? 0.3 : 1 }}
                                                     >
                                                         <FiX />
                                                     </button>
@@ -273,7 +257,7 @@ const AdminDashboard: React.FC = () => {
                 <div style={{ marginTop: '40px', padding: '30px', backgroundColor: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid #222' }}>
                     <h3 style={{ fontSize: '12px', fontWeight: 900, letterSpacing: '2px', color: '#555', marginBottom: '20px' }}>SYSTEM_SECURITY_LOGS</h3>
                     <div style={{ fontFamily: '"Fira Code", monospace', fontSize: '11px', color: '#444', lineHeight: 2 }}>
-                        [AUTH_SEC] {new Date().toISOString()} - POLLING_PENDING_USERS... OK<br />
+                        [AUTH_SEC] {new Date().toISOString()} - POLLING_PENDING_PROFILES... OK<br />
                         [AUTH_SEC] {new Date().toISOString()} - DATABASE_SYNCHRONIZED... OK<br />
                         [AUTH_SEC] {new Date().toISOString()} - SECURITY_PROTOCOL_ALPHA_ACTIVE
                     </div>

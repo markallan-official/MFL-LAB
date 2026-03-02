@@ -30,33 +30,40 @@ export const authMiddleware = async (
         // Check if this is the super admin by email from Auth
         const isSuperByEmail = user.email?.toLowerCase() === 'markmallan01@gmail.com';
 
-        // Fetch user data from database
-        const { data: userData, error: userError } = await supabase!
-            .from('users')
-            .select('id, email, full_name, org_id, status')
+        // Fetch user data from the new PROFILES table
+        const { data: profileData, error: profileError } = await supabase!
+            .from('profiles')
+            .select('id, email, role, approved')
             .eq('id', user.id)
             .single();
 
-        if ((userError || !userData) && !isSuperByEmail) {
-            return res.status(401).json({ error: 'User not found' });
+        if (profileError || !profileData) {
+            // Fallback for Super Admin if profile is missing (should not happen with trigger)
+            if (isSuperByEmail) {
+                req.user = {
+                    id: user.id,
+                    email: user.email,
+                    full_name: 'Super Admin',
+                    status: 'active',
+                    approved: true,
+                    role: 'super_admin'
+                };
+                return next();
+            }
+            return res.status(401).json({ error: 'User profile not found' });
         }
 
-        // Prepare request user object
-        const finalUserData = userData || {
-            id: user.id,
-            email: user.email,
-            full_name: 'Super Admin',
-            status: 'active',
-            org_id: null
+        // Attach profile data to request
+        req.user = {
+            ...profileData,
+            status: profileData.approved ? 'active' : 'pending'
         };
 
-        // Check if user is active - Always allow super admin
-        const isSuper = finalUserData.email?.toLowerCase() === 'markmallan01@gmail.com';
-        if (!isSuper && (!finalUserData.status || !finalUserData.status.startsWith('active'))) {
-            return res.status(403).json({ error: 'User account is not active' });
+        // Check if user is approved
+        if (!profileData.approved && !isSuperByEmail) {
+            return res.status(403).json({ error: 'User account is awaiting administrator approval' });
         }
 
-        req.user = finalUserData;
         next();
     } catch (error) {
         console.error('Auth middleware error:', error);

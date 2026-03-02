@@ -99,52 +99,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         console.log('AuthContext: Fetching DB details for', user.email);
 
-        // Hardcoded Super Admin check
+        // Check if this is the super admin by email
         const isSuperAdmin = user.email?.toLowerCase() === 'markmallan01@gmail.com';
         setIsAdmin(isSuperAdmin);
 
         try {
-            const { data, error } = await supabase
-                .from('users')
-                .select('status')
+            const { data: profile, error } = await supabase
+                .from('profiles')
+                .select('role, approved')
                 .eq('id', user.id)
                 .single();
 
-            if (error) {
-                console.warn('AuthContext: DB fetch error', error);
+            if (error || !profile) {
+                console.warn('AuthContext: Profile fetch error', error);
                 if (isSuperAdmin) {
                     setStatus('active');
-                    setAssignedWorkspace('unassigned');
-                    setLoading(false);
-                    return;
-                }
-            }
-
-            if (data) {
-                console.log('AuthContext: DB Data retrieved', data.status);
-                // For Super Admin, we force 'active' to ensure they can manage the platform
-                if (isSuperAdmin) {
-                    setStatus('active');
-                    setAssignedWorkspace('unassigned');
                 } else {
-                    setStatus(data.status);
-                    if (data.status.startsWith('active:')) {
-                        setAssignedWorkspace(data.status.split(':')[1]);
-                    } else if (data.status === 'active') {
-                        setAssignedWorkspace('unassigned');
-                    }
+                    setStatus('pending');
                 }
-            } else if (isSuperAdmin) {
-                // If no record but is super admin
-                setStatus('active');
-                setAssignedWorkspace('unassigned');
+            } else {
+                console.log('AuthContext: Profile retrieved', profile);
+                setStatus(profile.approved ? 'active' : 'pending');
             }
         } catch (e) {
-            console.error('AuthContext: Unexpected detail fetch error', e);
-            if (isSuperAdmin) {
-                setStatus('active');
-                setAssignedWorkspace('unassigned');
-            }
+            console.error('AuthContext: Unexpected profile fetch error', e);
+            if (isSuperAdmin) setStatus('active');
         } finally {
             setLoading(false);
         }

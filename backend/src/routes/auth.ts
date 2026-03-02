@@ -7,7 +7,7 @@ const router = express.Router();
 
 // POST /api/v1/auth/signup - Request account access
 router.post('/signup', async (req: Request, res: Response) => {
-    const { email, password, full_name, organization, requested_role } = req.body;
+    const { email, password, full_name, requested_role } = req.body;
 
     try {
         // Validate input
@@ -15,21 +15,18 @@ router.post('/signup', async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        // Check if email already registered
-        const { data: existingUser } = await supabase!
-            .from('users')
+        // Check if profile already exists
+        const { data: existingProfile } = await supabase!
+            .from('profiles')
             .select('id')
             .eq('email', email)
             .single();
 
-        if (existingUser) {
+        if (existingProfile) {
             return res.status(409).json({ error: 'Email already registered' });
         }
 
-        // Attempt to create user in Supabase Auth or sign in if already exists
-        let authData: any;
-        let authError: any;
-
+        // Create user in Supabase Auth
         const { data: signUpData, error: signUpErr } = await supabase!.auth.signUp({
             email,
             password,
@@ -40,150 +37,42 @@ router.post('/signup', async (req: Request, res: Response) => {
         });
 
         if (signUpErr) {
-            // If user already registered, try signing in to "repair" the DB state
+            // Check if user already exists in Auth but not in profiles
             if (signUpErr.message.toLowerCase().includes('already registered')) {
-                console.log('User already in Auth. Attempting repair via sign-in...');
                 const { data: signInData, error: signInErr } = await supabase!.auth.signInWithPassword({
                     email,
                     password
                 });
 
                 if (signInErr) {
-                    return res.status(409).json({ error: 'User already exists and authentication failed. Please check your credentials.' });
-                }
-                authData = signInData;
-                console.log('Repair sign-in successful for user:', authData.user.id);
-            } else {
-                throw signUpErr;
-            }
-        } else {
-            authData = signUpData;
-        }
-
-        if (!authData?.user) throw new Error('User identification failed');
-
-        // Get or create organization
-        let orgId: string;
-        if (organization) {
-            const { data: existingOrg } = await supabase!
-                .from('organizations')
-                .select('id')
-                .eq('slug', organization.toLowerCase().replace(/\s+/g, '-'))
-                .single();
-
-            if (existingOrg) {
-                orgId = existingOrg.id;
-            } else {
-                const { data: newOrg, error: orgError } = await supabase!
-                    .from('organizations')
-                    .insert({
-                        name: organization,
-                        slug: organization.toLowerCase().replace(/\s+/g, '-'),
-                        owner_id: authData.user.id
-                    })
-                    .select()
-                    .single();
-
-                if (orgError) throw orgError;
-                orgId = newOrg.id;
-            }
-        } else {
-            // Create default org
-            const { data: newOrg, error: orgError } = await supabase!
-                .from('organizations')
-                .insert({
-                    name: `${full_name}'s Organization`,
-                    slug: `org-${authData.user.id.substring(0, 8)}`,
-                    owner_id: authData.user.id
-                })
-                .select()
-                .single();
-
-            if (orgError) throw orgError;
-            orgId = newOrg.id;
-        }
-
-        // Create user record
-        try {
-            const { error: userError } = await supabase!
-                .from('users')
-                .upsert({
-                    id: authData.user.id,
-                    org_id: orgId,
-                    email,
-                    full_name,
-                    status: email.toLowerCase() === 'markmallan01@gmail.com' ? 'active' : 'pending',
-                    email_verified: email.toLowerCase() === 'markmallan01@gmail.com',
-                    metadata: { requested_role }
-                }, { onConflict: 'id' });
-
-            if (userError) {
-                if (userError.code === '42P01') { // PostgreSQL Table Not Found
-                    throw new Error('DATABASE_SCHEMA_MISSING: The "users" table was not found. Please contact the administrator to run the setup script.');
-                }
-                throw userError;
-            }
-
-            // Create approval request for admin (Skip if it's the super admin)
-            if (email.toLowerCase() !== 'markmallan01@gmail.com') {
-                const { error: approvalError } = await supabase!
-                    .from('approvals')
-                    .upsert({
-                        org_id: orgId,
-                        type: 'user_join',
-                        status: 'pending',
-                        requester_id: authData.user.id,
-                        data: {
-                            user_id: authData.user.id,
-                            email,
-                            full_name,
-                            requested_role,
-                            requested_at: new Date().toISOString()
-                        }
-                    }, { onConflict: 'requester_id,type,status' });
-
-                if (approvalError) {
-                    if (approvalError.code === '42P01') {
-                        throw new Error('DATABASE_SCHEMA_MISSING: The "approvals" table was not found. Please contact the administrator to run the setup script.');
-                    }
-                    throw approvalError;
+                    return res.status(409).json({ error: 'User already exists in Auth, but verification failed. Please check credentials.' });
                 }
 
-                // Send email notification to Admin (markmallan01@gmail.com)
-                try {
-                    await sendAccessRequestEmail(email, full_name);
-                } catch (emailErr) {
-                    console.warn('Failed to send admin notification email:', emailErr);
-                }
-            }
-
-            res.status(201).json({
-                success: true,
-                message: 'Signup request submitted. Awaiting admin approval.',
-                user: {
-                    id: authData.user.id,
-                    email: authData.user.email,
-                    full_name
-                }
-            });
-        } catch (dbError: any) {
-            console.error('Database insertion error during signup:', dbError);
-
-            // If it's a schema issue, provide a better error but don't delete the auth user
-            // (they already exist in Supabase Auth now)
-            if (dbError.message?.includes('DATABASE_SCHEMA_MISSING')) {
-                return res.status(503).json({
-                    error: 'DATABASE_SETUP_REQUIRED',
-                    message: dbError.message
+                // If sign-in works, we ensure the profile exists (trigger should have handled it, but let's be safe)
+                await supabase!.from('profiles').upsert({
+                    id: signInData.user.id,
+                    email: email,
+                    role: 'pending',
+                    approved: email.toLowerCase() === 'markmallan01@gmail.com'
                 });
+
+                return res.status(200).json({ success: true, message: 'Account status checked. Please wait for approval.' });
             }
-            throw dbError;
+            throw signUpErr;
         }
+
+        res.status(201).json({
+            success: true,
+            message: 'Signup request submitted. Awaiting admin approval.',
+            user: {
+                id: signUpData.user!.id,
+                email: signUpData.user!.email,
+                full_name
+            }
+        });
     } catch (error: any) {
         console.error('Signup error:', error);
-        res.status(error.message?.includes('DATABASE_SCHEMA_MISSING') ? 503 : 500).json({
-            error: error.message || 'Internal server error'
-        });
+        res.status(500).json({ error: error.message || 'Internal server error' });
     }
 });
 
@@ -196,7 +85,7 @@ router.post('/login', async (req: Request, res: Response) => {
             return res.status(400).json({ error: 'Email and password required' });
         }
 
-        // Sign in with Supabase
+        // Sign in with Supabase Auth
         const { data: authData, error: authError } = await supabase!.auth.signInWithPassword({
             email,
             password
@@ -207,46 +96,40 @@ router.post('/login', async (req: Request, res: Response) => {
 
         const isSuperByEmail = authData.user.email?.toLowerCase() === 'markmallan01@gmail.com';
 
-        const { data: user, error: userError } = await supabase!
-            .from('users')
-            .select('id, email, full_name, status, org_id')
+        // Fetch profile
+        const { data: profile, error: profileError } = await supabase!
+            .from('profiles')
+            .select('id, email, role, approved')
             .eq('id', authData.user.id)
             .single();
 
-        if ((userError || !user) && !isSuperByEmail) {
-            return res.status(401).json({ error: 'User not found in application database' });
+        if ((profileError || !profile) && !isSuperByEmail) {
+            return res.status(401).json({ error: 'User profile not found. Please contact support.' });
         }
 
-        const finalUser = user || {
+        const finalUser = profile || {
             id: authData.user.id,
             email: authData.user.email,
-            full_name: 'Super Admin',
-            status: 'active',
-            org_id: null
+            role: 'super_admin',
+            approved: true
         };
 
-        const isSuper = finalUser.email?.toLowerCase() === 'markmallan01@gmail.com';
-        if (!isSuper && (!finalUser.status || !finalUser.status.startsWith('active'))) {
+        if (!finalUser.approved && !isSuperByEmail) {
             return res.status(403).json({
-                error: 'Account not active',
-                message: `Account status: ${finalUser.status}. Awaiting admin approval.`
+                error: 'Account not approved',
+                message: 'Your account is pending administrator approval.'
             });
         }
 
         res.json({
             success: true,
-            user: {
-                id: finalUser.id,
-                email: finalUser.email,
-                full_name: finalUser.full_name,
-                org_id: finalUser.org_id
-            },
+            user: finalUser,
             session: authData.session,
             access_token: authData.session?.access_token
         });
-    } catch (error) {
+    } catch (error: any) {
         console.error('Login error:', error);
-        res.status(401).json({ error: (error as Error).message });
+        res.status(401).json({ error: error.message });
     }
 });
 
