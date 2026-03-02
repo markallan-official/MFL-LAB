@@ -23,15 +23,12 @@ router.post('/signup', async (req: Request, res: Response) => {
             .single();
 
         if (existingProfile) {
-            if (existingProfile.approved) {
-                return res.status(409).json({ error: 'Email already registered and approved. Please log in.' });
-            } else {
-                // Return 200 to acknowledge the re-request gracefully
-                return res.status(200).json({
-                    success: true,
-                    message: 'Your request is already being reviewed. Please wait for administrator approval.'
-                });
-            }
+            return res.status(200).json({
+                success: true,
+                message: existingProfile.approved
+                    ? 'This account is already approved. Please return to the login page to access your dashboard.'
+                    : 'Your registration request is already in our system and is currently under review.'
+            });
         }
 
         // Create user in Supabase Auth
@@ -47,24 +44,10 @@ router.post('/signup', async (req: Request, res: Response) => {
         if (signUpErr) {
             // Check if user already exists in Auth but not in profiles
             if (signUpErr.message.toLowerCase().includes('already registered')) {
-                const { data: signInData, error: signInErr } = await supabase!.auth.signInWithPassword({
-                    email,
-                    password
+                return res.status(200).json({
+                    success: true,
+                    message: 'Account request received. Our administrators will review your profile shortly.'
                 });
-
-                if (signInErr) {
-                    return res.status(409).json({ error: 'User already exists in Auth, but verification failed. Please check credentials.' });
-                }
-
-                // If sign-in works, we ensure the profile exists (trigger should have handled it, but let's be safe)
-                await supabase!.from('profiles').upsert({
-                    id: signInData.user.id,
-                    email: email,
-                    role: 'pending',
-                    approved: email.toLowerCase() === 'markmallan01@gmail.com'
-                });
-
-                return res.status(200).json({ success: true, message: 'Account status checked. Please wait for approval.' });
             }
             throw signUpErr;
         }
