@@ -12,6 +12,7 @@ import {
     FiLogOut,
     FiLock
 } from 'react-icons/fi';
+import HealthBadge from '../components/HealthBadge';
 
 const Dashboard: React.FC = () => {
     const { user, isAdmin, role, signOut } = useAuth();
@@ -171,6 +172,9 @@ const Dashboard: React.FC = () => {
                             {user?.email?.split('@')[0].toUpperCase()}
                         </div>
                     </div>
+                    <div style={{ display: isMobile ? 'none' : 'block' }}>
+                        <HealthBadge compact />
+                    </div>
                     <button
                         onClick={handleLogout}
                         style={{
@@ -265,7 +269,9 @@ const Dashboard: React.FC = () => {
             }}>
                 <div style={{ display: 'flex', gap: isMobile ? '15px' : '30px', flexWrap: 'wrap', justifyContent: 'center' }}>
                     <div>STATUS: <span style={{ color: '#00FF00' }}>AUTHORIZED</span></div>
-                    <div>LATENCY: 14MS</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <HealthBadge compact />
+                    </div>
                     <div>ENCRYPTION: Q_V4</div>
                 </div>
                 <div style={{ textAlign: 'center' }}>© 2026 MFL LABS // OPERATIONS LOGGED</div>

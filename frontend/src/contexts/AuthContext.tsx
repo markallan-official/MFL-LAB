@@ -83,8 +83,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 console.log('[AUTH] Profile loaded — approved:', profile.approved, 'role:', profile.role);
                 setStatus(profile.approved ? 'active' : 'pending');
                 setRole(profile.role);
-                // If email is super admin, always force admin status regardless of profile
-                if (isSuperAdmin) setIsAdmin(true);
+                // Grant admin if role from profile indicates admin
+                if (profile.role === 'admin' || profile.role === 'super_admin' || isSuperAdmin) {
+                    setIsAdmin(true);
+                }
             }
         } catch (e) {
             console.error('[AUTH] Unexpected profile fetch error:', e);
@@ -163,7 +165,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
         });
         // Hard redirect — guarantees clean state regardless of React router state
-        window.location.href = '/signup';
+        window.location.href = '/login';
     }, []);
 
     const value = {

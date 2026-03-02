@@ -17,6 +17,7 @@ import {
     FiAlertCircle
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
+import HealthBadge from '../../components/HealthBadge';
 
 interface UserProfile {
     id: string;
@@ -41,12 +42,23 @@ const AdminDashboard: React.FC = () => {
     const [selectedRoles, setSelectedRoles] = useState<Record<string, string>>({});
 
     useEffect(() => {
-        if (session) {
-            fetchProfiles();
-        } else if (!loading && !session) {
-            setLoading(false);
-            setError('SESSION_NOT_INITIALIZED');
-        }
+        let mounted = true;
+        let intervalId: any;
+        const boot = async () => {
+            if (!mounted) return;
+            if (session) {
+                await fetchProfiles();
+                intervalId = setInterval(fetchProfiles, 5000);
+            } else if (!loading && !session) {
+                setLoading(false);
+                setError('SESSION_NOT_INITIALIZED');
+            }
+        };
+        boot();
+        return () => {
+            mounted = false;
+            if (intervalId) clearInterval(intervalId);
+        };
     }, [session]);
 
     const fetchProfiles = async () => {
@@ -145,6 +157,7 @@ const AdminDashboard: React.FC = () => {
                     <div style={{ backgroundColor: '#0D0D11', padding: '12px 20px', borderRadius: '6px', border: '1px solid #222', display: 'flex', alignItems: 'center', gap: '15px' }}>
                         <FiShield color="var(--primary-blue)" />
                         <span style={{ fontSize: '11px', fontWeight: 800, color: '#555' }}>OPERATOR: <span style={{ color: '#BBB' }}>{user?.email}</span></span>
+                        <HealthBadge compact />
                     </div>
                 </header>
 
