@@ -112,38 +112,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         const initAuth = async () => {
             try {
-                // Manually handle PKCE code exchange to ensure session is established before loading
-                const url = new URL(window.location.href);
-                const code = url.searchParams.get('code');
+                // Check if we are in a redirect flow (PKCE or Implicit)
+                const isRedirect = window.location.search.includes('code=') || window.location.hash.includes('access_token=');
                 
-                if (code) {
-                    console.log('[AUTH] Detected PKCE code in URL, attempting exchange...');
-                    const { data, error } = await supabase.auth.exchangeCodeForSession(window.location.href);
-                    
-                    if (error) {
-                        console.error('[AUTH] PKCE exchange failed:', error.message);
-                    } else if (data.session) {
-                        console.log('[AUTH] PKCE exchange successful, session established');
-                        // Clean URL
-                        window.history.replaceState({}, document.title, window.location.pathname);
-                        // Set session immediately to avoid race with onAuthStateChange
-                        if (mounted) {
-                            setSession(data.session);
-                            setUser(data.session.user);
-                            await fetchUserDetails(data.session.user);
-                            // Auto-approve logic
-                            try {
-                                await fetch('/api/v1/auth/confirm', {
-                                    method: 'POST',
-                                    headers: { Authorization: `Bearer ${data.session.access_token}` }
-                                });
-                                await fetchUserDetails(data.session.user);
-                            } catch (e) {
-                                console.warn('[AUTH] Auto-approve failed:', e);
-                            }
-                        }
-                        return; // Exit, state is set
-                    }
+                if (isRedirect) {
+                    console.log('[AUTH] Redirect detected, waiting for Supabase to process session...');
+                    // Do NOT set loading to false here. Wait for onAuthStateChange.
+                    return;
                 }
 
                 const { data: { session: existingSession } } = await supabase.auth.getSession();
@@ -155,7 +130,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         setUser(existingSession.user);
                         await fetchUserDetails(existingSession.user);
                     } else {
-                        // No session found, stop loading
+                        // Only stop loading if we are NOT waiting for a redirect
                         setLoading(false);
                     }
                 }
