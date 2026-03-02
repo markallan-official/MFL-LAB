@@ -33,7 +33,7 @@ const Dashboard: React.FC = () => {
 
     const handleLogout = async () => {
         await signOut();
-        navigate('/login');
+        navigate('/signup');
     };
 
     const modules = [

@@ -13,9 +13,9 @@ const Pending: React.FC = () => {
         setChecking(false);
     };
 
-    const handleLogout = async () => {
+    const handleDisconnect = async () => {
         await signOut();
-        navigate('/login');
+        navigate('/signup');
     };
 
     // If suddenly active or is admin, redirect
@@ -63,14 +63,14 @@ const Pending: React.FC = () => {
                     </button>
 
                     <button
-                        onClick={handleLogout}
+                        onClick={handleDisconnect}
                         style={{
                             padding: '12px 24px', borderRadius: '8px', border: '1px solid #222',
                             backgroundColor: 'transparent', color: '#555', fontSize: '12px', fontWeight: 800,
                             cursor: 'pointer', transition: 'all 0.2s', letterSpacing: '1px'
                         }}
                     >
-                        SIGN_OUT / RETURN_TO_LOGIN
+                        DISCONNECT / RETURN_TO_SIGNUP
                     </button>
                 </div>
             </div>

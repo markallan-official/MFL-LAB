@@ -18,12 +18,12 @@ router.post('/signup', async (req: Request, res: Response) => {
         // Check if profile already exists
         const { data: existingProfile } = await supabase!
             .from('profiles')
-            .select('id')
+            .select('id, approved')
             .eq('email', email)
             .single();
 
-        if (existingProfile) {
-            return res.status(409).json({ error: 'Email already registered' });
+        if (existingProfile && existingProfile.approved) {
+            return res.status(409).json({ error: 'Email already registered and approved' });
         }
 
         // Create user in Supabase Auth
