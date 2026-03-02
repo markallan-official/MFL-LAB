@@ -138,6 +138,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setSession(newSession);
                 setUser(newSession?.user ?? null);
                 await fetchUserDetails(newSession?.user);
+                try {
+                    // Attempt auto-approve after email confirmation
+                    const token = newSession?.access_token;
+                    if (token) {
+                        await fetch('/api/v1/auth/confirm', {
+                            method: 'POST',
+                            headers: { Authorization: `Bearer ${token}` }
+                        });
+                        // Refresh profile after potential approval
+                        await fetchUserDetails(newSession?.user);
+                    }
+                } catch (e) {
+                    console.warn('[AUTH] Auto-approve failed or not needed');
+                }
             } else {
                 setLoading(false);
             }

@@ -200,4 +200,57 @@ router.get('/me', authMiddleware, async (req: any, res: Response) => {
     }
 });
 
+// POST /api/v1/auth/confirm - Auto-approve after email confirmation
+router.post('/confirm', async (req: Request, res: Response) => {
+    try {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ error: 'No authorization token' });
+        }
+        const token = authHeader.substring(7);
+
+        const { data: { user }, error } = await supabase!.auth.getUser(token);
+        if (error || !user) {
+            return res.status(401).json({ error: 'Invalid or expired token' });
+        }
+
+        const { data: profile, error: profileError } = await supabase!
+            .from('profiles')
+            .select('id, email, role, approved')
+            .eq('id', user.id)
+            .single();
+
+        if (profileError) {
+            return res.status(500).json({ error: profileError.message });
+        }
+
+        const requestedRole = (user.user_metadata as any)?.requested_role || profile?.role || 'user';
+        const isConfirmed = (user as any)?.email_confirmed_at || (user as any)?.confirmed_at || null;
+
+        // If already approved, just return success
+        if (profile?.approved) {
+            return res.json({ success: true, approved: true, role: profile.role });
+        }
+
+        // Approve only if email is confirmed
+        if (!isConfirmed) {
+            return res.status(400).json({ error: 'Email not confirmed yet' });
+        }
+
+        const { error: updateError } = await supabase!
+            .from('profiles')
+            .update({ approved: true, role: requestedRole })
+            .eq('id', user.id);
+
+        if (updateError) {
+            return res.status(500).json({ error: updateError.message });
+        }
+
+        return res.json({ success: true, approved: true, role: requestedRole });
+    } catch (error: any) {
+        console.error('[CONFIRM] Unexpected error:', error);
+        res.status(500).json({ error: error.message || 'Internal server error' });
+    }
+});
+
 export default router;
