@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import {
     FiUserCheck,
+    FiUsers,
     FiShield,
     FiClock,
     FiMail,
@@ -35,6 +37,7 @@ const ROLES = [
 
 const AdminDashboard: React.FC = () => {
     const { user, session, isAdmin } = useAuth();
+    const navigate = useNavigate();
     const [pendingProfiles, setPendingProfiles] = useState<UserProfile[]>([]);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState<string | null>(null);
@@ -153,6 +156,27 @@ const AdminDashboard: React.FC = () => {
                             MFL_LABS // SECURITYCORE
                         </div>
                         <h1 style={{ fontSize: '36px', fontWeight: 900, margin: 0, letterSpacing: '-1px' }}>Admin Control Panel</h1>
+                        <div style={{ marginTop: '20px', display: 'flex', gap: '15px' }}>
+                            <button
+                                onClick={() => navigate('/admin/users')}
+                                style={{
+                                    backgroundColor: '#141418',
+                                    color: '#FFF',
+                                    border: '1px solid #333',
+                                    padding: '8px 15px',
+                                    borderRadius: '6px',
+                                    fontSize: '11px',
+                                    fontWeight: 900,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '10px',
+                                    letterSpacing: '1px'
+                                }}
+                            >
+                                <FiUsers color="#0066FF" /> OPEN_USERS_PANEL
+                            </button>
+                        </div>
                     </div>
                     <div style={{ backgroundColor: '#0D0D11', padding: '12px 20px', borderRadius: '6px', border: '1px solid #222', display: 'flex', alignItems: 'center', gap: '15px' }}>
                         <FiShield color="var(--primary-blue)" />

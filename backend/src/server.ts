@@ -10,6 +10,8 @@ import dotenv from 'dotenv';
 import { supabase } from './config/supabase.js';
 import authRoutes from './routes/auth.js';
 import adminApprovalsRoutes from './routes/admin/approvals.js';
+import adminUsersRoutes from './routes/admin/users.js';
+import assemblyRoutes from './routes/assembly.js';
 import designerRoutes from './routes/workspaces/designer.js';
 import analystRoutes from './routes/workspaces/analyst.js';
 import qaRoutes from './routes/workspaces/qa.js';
@@ -135,6 +137,8 @@ app.get('/health', (req: Request, res: Response) => {
 // Mount all route modules
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/admin/approvals', adminApprovalsRoutes);
+app.use('/api/v1/admin/users', adminUsersRoutes);
+app.use('/api/v1/assembly', assemblyRoutes);
 app.use('/api/v1/workspaces/designer', designerRoutes);
 app.use('/api/v1/workspaces/analyst', analystRoutes);
 app.use('/api/v1/workspaces/qa', qaRoutes);
@@ -163,6 +167,12 @@ app.get('/api/docs', (req: Request, res: Response) => {
                         'GET /api/v1/admin/approvals/:id',
                         'POST /api/v1/admin/approvals/:id/approve',
                         'POST /api/v1/admin/approvals/:id/reject',
+                    ],
+                    users: [
+                        'GET /api/v1/admin/users',
+                        'POST /api/v1/admin/users/:id/approve',
+                        'POST /api/v1/admin/users/:id/reject',
+                        'PUT /api/v1/admin/users/:id/role',
                     ]
                 },
                 workspaces: {

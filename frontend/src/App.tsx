@@ -10,7 +10,9 @@ import Pending from './pages/auth/Pending';
 
 // Main Pages
 import Dashboard from './pages/Dashboard';
+import AssemblyPanel from './pages/AssemblyPanel';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import UsersPanel from './pages/admin/UsersPanel';
 import ClientPortal from './pages/ClientPortal';
 
 // Workspaces
@@ -33,10 +35,12 @@ const App: React.FC = () => {
 
                         {/* Protected Routes (Require Active Status) */}
                         <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                        <Route path="/assembly" element={<ProtectedRoute><AssemblyPanel /></ProtectedRoute>} />
                         <Route path="/client" element={<ProtectedRoute><ClientPortal /></ProtectedRoute>} />
 
                         {/* Admin Routes */}
                         <Route path="/admin" element={<ProtectedRoute requireAdmin><AdminDashboard /></ProtectedRoute>} />
+                        <Route path="/admin/users" element={<ProtectedRoute requireAdmin><UsersPanel /></ProtectedRoute>} />
 
                         {/* Workspace Routes */}
                         <Route path="/workspaces/designer" element={<ProtectedRoute><DesignerWorkspace /></ProtectedRoute>} />

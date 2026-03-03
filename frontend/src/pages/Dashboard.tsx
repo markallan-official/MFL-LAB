@@ -10,7 +10,8 @@ import {
     FiEye,
     FiSettings,
     FiLogOut,
-    FiLock
+    FiLock,
+    FiBox
 } from 'react-icons/fi';
 import HealthBadge from '../components/HealthBadge';
 
@@ -43,11 +44,12 @@ const Dashboard: React.FC = () => {
         { id: 'qa', title: 'QA TERMINAL', path: '/workspaces/qa', icon: <FiShield />, color: 'var(--primary-blue)', desc: 'Stability Guard' },
         { id: 'ai-builder', title: 'AI BUILDER', path: '/workspaces/ai-builder', icon: <FiCpu />, color: 'var(--primary-red)', desc: 'Neural Engine' },
         { id: 'integration', title: 'INTEGRATOR', path: '/workspaces/integration', icon: <FiLink />, color: 'var(--primary-blue)', desc: 'Assembly Layer' },
+        { id: 'assembly', title: 'ASSEMBLY CORE', path: '/assembly', icon: <FiBox />, color: '#00FF99', desc: 'Final Integration' },
         { id: 'client', title: 'CLIENT PORTAL', path: '/client', icon: <FiEye />, color: 'var(--accent-cyan)', desc: 'View Layer' },
     ];
 
     // Filter based on admin/access
-    const visibleModules = modules.filter(m => isAdmin || m.id === assignedWorkspace);
+    const visibleModules = modules.filter(m => isAdmin || m.id === assignedWorkspace || m.id === 'assembly' || m.id === 'client');
 
     // Add Admin Panel if super admin
     if (isAdmin) {
